@@ -1,3 +1,4 @@
+import os
 import time
 
 import torch
@@ -14,6 +15,7 @@ from models.transformer import Transformer
 
 class Trainer:
     def __init__(self):
+
         self.__prepare_data(dataset_cfg)
         self.__prepare_model()
 
@@ -40,7 +42,11 @@ class Trainer:
             :param filename: str - название файла
             TODO: реализовать сохранение модели по пути os.path.join(evaluation_cfg.exp_dir, f"{filename}.pt")
         """
-        raise NotImplementedError
+        if not os.path.exists(evaluation_cfg.exp_dir):
+            os.makedirs(evaluation_cfg.exp_dir)
+
+        path = os.path.join(evaluation_cfg.exp_dir, f"{filename}.pt")
+        torch.save(self.model.state_dict(), path)
 
     def load_model(self, filename):
         """
@@ -48,7 +54,8 @@ class Trainer:
             :param filename: str - название файла
             TODO: реализовать выгрузку весов модели по пути os.path.join(evaluation_cfg.exp_dir, f"{filename}.pt")
         """
-        raise NotImplementedError
+        path = os.path.join(evaluation_cfg.exp_dir, f"{filename}.pt")
+        self.model.load_state_dict(torch.load(path))
 
     def create_masks(self, encoder_input, decoder_input):
         """

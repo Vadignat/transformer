@@ -12,10 +12,9 @@ class SDPA(nn.Module):
         self.dk = cfg.dmodel // cfg.h
 
         # TODO: инициализация Pytorch softmax
-        self.softmax = ...
-
+        self.softmax = nn.Softmax(dim=-1)
         # TODO: инициализация dropout
-        self.dropout = ...
+        self.dropout = nn.Dropout()
 
 
     def forward(self, Q, K, V, mask_self_attention=None, mask_padding=None):
@@ -48,24 +47,33 @@ class SDPA(nn.Module):
         #    dk - размерность векторов key и query.
         #    Получаем необработанные оценки внимания.
         # TODO: написать код для получения необработанных оценок внимания
+        sdpa = torch.mm(Q, torch.t(K)) / (self.dk ** 0.5)
 
         # 1.1 Если mask_self_attention и/или mask_padding не None, заполнить необработанные оценки внимания
         # значениями -inf в тех местах, где mask_self_attention и/или mask_padding True
-        # TODO: написать код для обаботки масок
+        # TODO: написать код для обработки масок
+        if mask_self_attention is not None:
+            sdpa = torch.masked_fill(sdpa, mask_self_attention, float('-inf'))
+
+        if mask_padding is not None:
+            sdpa = torch.masked_fill(sdpa, mask_padding, float('-inf'))
 
 
         # 2. Применение функции softmax к необработанным оценкам внимания для получения коэффициентов внимания.
         #    Шаг softmax гарантирует, что коэффициенты положительны и в сумме дают 1.
         # TODO: написать код с применением softmax к необработанным оценкам внимания
+        sdpa = self.softmax(sdpa)
 
         # 3. Умножение коэффициентов внимания на матрицу values (V) и суммирование для получения итогового результата.
         #    Оператор @ здесь представляет собой пакетное матричное умножение коэффициентов внимания
         #    на тензор значений.
         #  TODO: написать код перемножения коэффициентов внимания на матрицу values
+        sdpa = sdpa @ V
 
         # 3. Применение dropout
         #  TODO: написать код применения dropout
-        ...
+        sdpa = self.dropout(sdpa)
+        return sdpa
 
 class SHA(nn.Module):
     def __init__(self, cfg):
@@ -79,7 +87,7 @@ class SHA(nn.Module):
         self.weights_v = ...
 
         # Инициализация механизма SDPA
-        self.spda = SDPA(self.cfg)
+        self.sdpa = SDPA(self.cfg)
 
     def forward(self, Q, K, V, mask_self_attention=None, mask_padding=None):
         """
