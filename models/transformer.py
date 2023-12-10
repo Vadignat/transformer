@@ -166,9 +166,9 @@ class FeedForward(nn.Module):
         self.cfg = cfg
 
         # Первый линейный слой увеличивает размерность данных с dmodel до 4*dmodel.
-        self.w1 = ...
+        self.w1 = nn.Linear(cfg.dmodel, 4 * cfg.dmodel)
         # Второй линейный слой уменьшает размерность обратно с 4*dmodel до dmodel.
-        self.w2 = ...
+        self.w2 = nn.Linear(4 * cfg.dmodel, cfg.dmodel)
 
         # Функция активации ReLU используется между двумя линейными слоями.
         self.relu = nn.ReLU()
@@ -186,7 +186,13 @@ class FeedForward(nn.Module):
         Returns:
             torch.Tensor: Выходной тензор с той же размерностью, что и входной.
         """
-        ...
+        x = self.w1(x)
+
+        x = self.relu(x)
+
+        x = self.w2(x)
+
+        return x
 
 class PositionEncoder(nn.Module):
     def __init__(self, cfg):
@@ -201,12 +207,15 @@ class PositionEncoder(nn.Module):
         # PE(pos, 2i) = sin(pos / (10000 ^ (2i / dmodel)))
         # PE(pos, 2i+1) = cos(pos / (10000 ^ (2i / dmodel)))
         # где pos - позиция в предложении, i - индекс в векторе
-        # ...
+        position = torch.arange(0, cfg.max_sentence_len).unsqueeze(1).float()
+        div_term = torch.exp(torch.arange(0, cfg.dmodel, 2).float() * -(math.log(10000.0) / cfg.dmodel))
+        self.pe_matrix[:, 0::2] = torch.sin(position * div_term)
+        self.pe_matrix[:, 1::2] = torch.cos(position * div_term)
         # Полезно знать. Пусть a - numpy array. Тогда a[0::2] выдает элементы на четных позициях, а a[1::2] на нечетных.
 
         # Инициализация dropout
-        self.dropout = ...
-        ...
+        self.dropout = nn.Dropout(cfg.dropout)
+
 
     def forward(self, x):
         """
@@ -224,14 +233,15 @@ class PositionEncoder(nn.Module):
            torch.Tensor: Тензор с добавленным позиционным кодированием.
        """
         # Вычисление размера предложения из входного тензора
-        # ...
+        seq_len = x.size(1)
 
         # Добавление позиционного кодирования к входному тензору
-        # ...
+        x = x + self.pe_matrix[:seq_len, :].unsqueeze(0)
 
         # Использование dropout
-        # ...
-        ...
+        x = self.dropout(x)
+
+        return x
 
 class EncoderSingleLayer(nn.Module):
     def __init__(self, cfg):
@@ -245,8 +255,8 @@ class EncoderSingleLayer(nn.Module):
         self.ff = FeedForward(cfg)
 
         # Инициализация 2-x dropout
-        self.dropout_1 = ...
-        self.dropout_2 = ...
+        self.dropout_1 = nn.Dropout(cfg.dropout)
+        self.dropout_2 = nn.Dropout(cfg.dropout)
 
     def forward(self, x):
         """
@@ -269,17 +279,24 @@ class EncoderSingleLayer(nn.Module):
             torch.Tensor: Тензор после одного слоя энкодера.
         """
         # Применение MHA, добавление Residual Connection и Layer Normalization
-        # ...
+        mha_output = self.mha(x, x, x)
+        mha_output = self.dropout_1(mha_output)
+        x_res1 = x + mha_output
+        x_ln1 = self.ln1(x_res1)
 
         # Применение Feed Forward, добавление Residual Connection и Layer Normalization
-        # ...
+        ff_output = self.ff(x_ln1)
+        ff_output = self.dropout_2(ff_output)
+        x_res2 = x_ln1 + ff_output
+        x_ln2 = self.ln2(x_res2)
+
+        return x_ln2
 
 class Encoder(nn.Module):
     def __init__(self, cfg):
         super(Encoder, self).__init__()
         # Создание N слоев энкодера cfg.N
-        # ...
-        self.seq = ...
+        self.seq = nn.ModuleList([EncoderSingleLayer(cfg) for _ in range(cfg.N)])
         self.cfg = cfg
 
     def forward(self, x):
@@ -295,7 +312,9 @@ class Encoder(nn.Module):
             torch.Tensor: Тензор после прохождения через N слоев энкодера.
         """
         # Применение каждого слоя энкодера
-        # ...
+        for layer in self.seq:
+            x = layer(x)
+        return x
 
 class DecoderSingleLayer(nn.Module):
     def __init__(self, cfg):
