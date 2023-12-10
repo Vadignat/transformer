@@ -82,9 +82,9 @@ class SHA(nn.Module):
         self.dk = cfg.dmodel // cfg.h
 
         # TODO: Инициализация линейных преобразований для Q, K, V
-        self.weights_q = ...
-        self.weights_k = ...
-        self.weights_v = ...
+        self.weights_q = nn.Linear(cfg.dmodel, cfg.dmodel)
+        self.weights_k = nn.Linear(cfg.dmodel, cfg.dmodel)
+        self.weights_v = nn.Linear(cfg.dmodel, cfg.dmodel)
 
         # Инициализация механизма SDPA
         self.sdpa = SDPA(self.cfg)
@@ -109,7 +109,15 @@ class SHA(nn.Module):
 
         # TODO: Линейные преобразования Q, K, V
 
+        Q_transformed = self.weights_q(Q)
+        K_transformed = self.weights_k(K)
+        V_transformed = self.weights_v(V)
+
         # TODO: Вызов SDPA с преобразованными Q, K, V
+
+        output = self.sdpa(Q_transformed, K_transformed, V_transformed, mask_self_attention, mask_padding)
+
+        return output
 
 class MHA(nn.Module):
     def __init__(self, cfg):
@@ -120,7 +128,7 @@ class MHA(nn.Module):
         self.sha_list = nn.ModuleList([SHA(cfg) for _ in range(cfg.h)])
 
         # TODO: Инициализация линейного преобразования для объединения выходов из всех головок внимания
-        self.weights_o = ...
+        self.weights_o = nn.Linear(cfg.dmodel * cfg.h, cfg.dmodel)
 
     def forward(self, Q, K, V, mask_self_attention=None, mask_padding=None):
         """
@@ -142,9 +150,15 @@ class MHA(nn.Module):
 
         # TODO: Вычисление выходов для каждого SHA
 
+        sha_outputs = [sha(Q, K, V, mask_self_attention, mask_padding) for sha in self.sha_list]
+
         # TODO: Конкатенация выходов и применение линейного преобразования
 
-        ...
+        concatenated_output = torch.cat(sha_outputs, dim=-1)
+
+        output = self.weights_o(concatenated_output)
+
+        return output
 
 class FeedForward(nn.Module):
     def __init__(self, cfg):
