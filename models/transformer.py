@@ -343,7 +343,7 @@ class Decoder(nn.Module):
         self.seq = ...
         self.cfg = cfg
 
-    def forward(self, x, enc_out, mask_for_pad_encoder, mask_for_pad_encoder_decoder, mask):
+    def forward(self, x, enc_out, mask_for_pad_decoder, mask_for_pad_encoder_decoder, mask):
         """
         Forward pass через декодер.
 
@@ -352,7 +352,7 @@ class Decoder(nn.Module):
         Args:
             x (torch.Tensor): Входной тензор декодера.
             enc_out (torch.Tensor): Выходной тензор энкодера.
-            mask_for_pad_encoder (torch.Tensor): Маска padding входа энкодера.
+            mask_for_pad_encoder (torch.Tensor): Маска padding входа декодера.
             mask_for_pad_encoder_decoder (torch.Tensor): Маска padding входа декодера и энкодера.
             mask (torch.Tensor): Маска для предотвращения утечки будущей информации.
 
@@ -367,6 +367,7 @@ class Transformer(nn.Module):
         super(Transformer, self).__init__()
 
         # Инициализация слоя для получения эмбеддингов и позиционного кодирования
+        # для задания с переводом вам нужно 2 embedding_layer
         self.embedding_layer = nn.Embedding(cfg.voc_size, cfg.dmodel)
         self.pe = PositionEncoder(cfg)
 
@@ -379,6 +380,7 @@ class Transformer(nn.Module):
 
         # Инициализация слоя линейного преобразования для выхода
         # Примечание: Веса выходного слоя могут быть связаны с весами для получения эмбеддингов
+        # для задания с переводом берите веса с  embedding_layer для декодера
         self.output_projection_layer = nn.Linear(cfg.dmodel, cfg.voc_size)
         self.output_projection_layer.weight = self.embedding_layer.weight
         self.output_projection_layer.bias = None

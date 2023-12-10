@@ -81,7 +81,8 @@ class DigitSequenceDataset(torch.utils.data.Dataset):
         return padded
 
 if __name__ == '__main__':
-    from config.dataset_cfg import cfg as dataset_cfg
+    from config.digits_dataset_cfg import cfg as dataset_cfg
+    from config.digits_dataset_cfg import cfg as dataset_cfg
     from config.transformer_cfg import cfg as transformer_cfg
     from torch.utils.data import DataLoader
 

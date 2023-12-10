@@ -1,15 +1,13 @@
 import os
-import time
 
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from config.dataset_cfg import cfg as dataset_cfg
-from config.transformer_cfg import cfg as transformer_cfg
+from config.digits_dataset_cfg import cfg as dataset_cfg
 from config.evaluation_cfg import cfg as evaluation_cfg
-
-from datasets.digitseq_dataset import DigitSequenceDataset
+from config.transformer_cfg import cfg as transformer_cfg
+from dataset.digitseq_dataset import DigitSequenceDataset
 from models.transformer import Transformer
 
 
@@ -109,7 +107,7 @@ class Trainer:
             вызывает метод self.make_step() на каждом шаге.
 
             TODO: реализуйте функцию обучения с использованием метода self.make_step(batch, update_model=True),
-                залогируйте на каждом шаге значение целевой функции, accuracy.
+                залогируйте на каждом шаге значение целевой функции, accuracy, расстояние Левенштейна.
                 Не считайте токены padding при подсчете точности
         """
         self.model.train()
@@ -130,8 +128,9 @@ class Trainer:
                на каждом шаге происходит следующее:
                - Модель получает на вход текущую последовательность и выдает предсказания для следующего токена.
                - Из этих предсказаний выбирается токен с наибольшей вероятностью (используется argmax).
+               В домашнем задании с обучением перевода добавьте  softmax с температурой и вероятностное сэмплирование.
                - Этот токен добавляется к текущей последовательности декодера, и процесс повторяется.
-        5. Вычисление метрик для сгенерированной последовательности, исключая паддинг-токены из подсчета.
+        5. Вычисление метрик (accuracy, расстояние Левенштейна) для сгенерированной последовательности, исключая паддинг-токены из подсчета.
 
     TODO: Реализуйте функцию оценки должна включать логирование значений функции потерь и точности,
           не учитывайте паддинг-токены при подсчете точности.
