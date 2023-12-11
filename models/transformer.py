@@ -321,22 +321,25 @@ class DecoderSingleLayer(nn.Module):
         super(DecoderSingleLayer, self).__init__()
 
         # Инициализация Multi-Head Attention для self attention декодера
-        # ...
+        self.self_attention = MHA(cfg)
 
         # Инициализация слоя нормализации и Dropout
-        # ...
+        self.ln1 = nn.LayerNorm(cfg.dmodel)
+        self.dropout_1 = nn.Dropout(cfg.dropout)
 
         # Инициализация Multi-Head Attention для внимания между энкодером и декодером
-        # ...
+        self.encoder_decoder_attention = MHA(cfg)
 
         # Инициализация слоя нормализации и Dropout
-        # ...
+        self.ln2 = nn.LayerNorm(cfg.dmodel)
+        self.dropout_2 = nn.Dropout(cfg.dropout)
 
         # Инициализация полносвязного Feed Forward слоя
-        # ...
+        self.ff = FeedForward(cfg)
 
         # Инициализация слоя нормализации и Dropout
-        # ...
+        self.ln3 = nn.LayerNorm(cfg.dmodel)
+        self.dropout_3 = nn.Dropout(cfg.dropout)
 
     def forward(self, x, enc_out, mask_for_pad_decoder, mask_for_pad_encoder_decoder, mask):
         """
@@ -361,19 +364,30 @@ class DecoderSingleLayer(nn.Module):
             torch.Tensor: Тензор после одного слоя декодера.
         """
         # Применение self-attention, residual connection, Layer Normalization и Dropout
-        # ...
+        self_attention_output = self.self_attention(x, x, x, mask_for_pad_decoder, mask)
+        self_attention_output = self.dropout_1(self_attention_output)
+        x_res1 = x + self_attention_output
+        x_ln1 = self.ln1(x_res1)
 
         # Применение attention между энкодером и декодером, residual connection, Layer Normalization и Dropout
-        # ...
+        enc_dec_attention_output = self.encoder_decoder_attention(x_ln1, enc_out, enc_out, mask_for_pad_encoder_decoder, mask)
+        enc_dec_attention_output = self.dropout_2(enc_dec_attention_output)
+        x_res2 = x_ln1 + enc_dec_attention_output
+        x_ln2 = self.ln2(x_res2)
 
         # Применение Feed Forward, residual connection, Layer Normalization и Dropout
-        # ...
+        ff_output = self.ff(x_ln2)
+        ff_output = self.dropout_3(ff_output)
+        x_res3 = x_ln2 + ff_output
+        x_ln3 = self.ln3(x_res3)
+
+        return x_ln3
 
 class Decoder(nn.Module):
     def __init__(self, cfg):
         super(Decoder, self).__init__()
         # Создание N слоев декодера
-        self.seq = ...
+        self.seq = nn.ModuleList([DecoderSingleLayer(cfg) for _ in range(cfg.N)])
         self.cfg = cfg
 
     def forward(self, x, enc_out, mask_for_pad_decoder, mask_for_pad_encoder_decoder, mask):
@@ -393,7 +407,9 @@ class Decoder(nn.Module):
             torch.Tensor: Тензор после прохождения через N слоев декодера.
         """
         # Применение каждого слоя декодера
-        # ...
+        for layer in self.seq:
+            x = layer(x, enc_out, mask_for_pad_decoder, mask_for_pad_encoder_decoder, mask)
+        return x
 
 class Transformer(nn.Module):
     def __init__(self, cfg):
