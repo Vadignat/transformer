@@ -455,16 +455,21 @@ class Transformer(nn.Module):
             torch.Tensor: Выходные данные трансформера.
         """
         # Применение слоя для получения эмбеддингов и позиционного кодирования
-        # ...
+        enc_inp = self.embedding_layer(enc_inp)
+        dec_inp = self.embedding_layer(dec_inp)
+        enc_inp = self.pe(enc_inp)
+        dec_inp = self.pe(dec_inp)
 
         # Прохождение через энкодер
-        # ...
+        enc_out = self.encoder(enc_inp)
 
         # Прохождение через декодер
-        # ...
+        dec_out = self.decoder(dec_inp, enc_out, mask_for_pad_decoder, mask_for_pad_encoder_decoder, mask)
 
         # Применение выходного линейного преобразования
-        # ...
+        final_output = self.output_projection_layer(dec_out)
+
+        return final_output
 
 
 if __name__ == "__main__":
