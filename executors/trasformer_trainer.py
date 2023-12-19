@@ -74,7 +74,14 @@ class Trainer:
             - Маска для padding входов энкодера-декодера.
             - Маска для предотвращения утечки будущей информации в декодере.
         """
-        # TODO написать функцию для создания масок
+        encoder_padding_mask = (encoder_input != 0).unsqueeze(1).unsqueeze(2)
+
+        encoder_decoder_padding_mask = (encoder_input != 0).unsqueeze(1).unsqueeze(2)
+
+        seq_len = decoder_input.size(1)
+        future_mask = torch.triu(torch.ones(1, seq_len, seq_len), diagonal=1).bool()
+
+        return encoder_padding_mask, encoder_decoder_padding_mask, future_mask
 
 
     def make_step(self, batch):
@@ -99,7 +106,25 @@ class Trainer:
             :return: значение функции потерь, выход модели
             # TODO: реализуйте инференс модели для данных batch, посчитайте значение целевой функции
         """
-        raise NotImplementedError
+        encoder_input, decoder_input, seq_len = batch
+
+        encoder_padding_mask, encoder_decoder_padding_mask, future_mask = self.create_masks(encoder_input,
+                                                                                            decoder_input)
+
+        output = self.forward(encoder_input, decoder_input, encoder_decoder_padding_mask, encoder_padding_mask,
+                              future_mask)
+
+        output_flatten = output.view(-1, self.cfg.voc_size)
+        target_flatten = decoder_input.view(-1)
+
+
+        loss = self.criterion(output_flatten, target_flatten)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        return loss.item(), output
 
     def train_epoch(self, *args, **kwargs):
         """
